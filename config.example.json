@@ -1,0 +1,8 @@
+{
+  "clawdbot_gateway_url": "http://localhost:18789",
+  "clawdbot_agent_id": "clawdbotbot",
+  "switch_commands": ["/clawd", "/管理", "/clawdbot"],
+  "exit_commands": ["/exit", "/退出", "/返回"],
+  "timeout": 60,
+  "gateway_auth_token": ""
+}
