@@ -63,19 +63,42 @@ class CommandHandler:
                 return message[len(cmd_no_slash):].strip()
         return message
     
+    def is_session_command(self, message: str) -> bool:
+        """检查是否为会话选择命令"""
+        message = message.strip().lower()
+        for cmd in self.switch_commands:
+            cmd_base = cmd.lstrip("/").lower()
+            if message.startswith(f"{cmd} session") or message.startswith(f"{cmd_base} session"):
+                return True
+        return False
+    
+    def extract_session_name(self, message: str) -> Optional[str]:
+        """从消息中提取会话名称"""
+        message = message.strip()
+        for cmd in self.switch_commands:
+            patterns = [f"{cmd} session ", f"{cmd.lstrip('/')} session "]
+            for pattern in patterns:
+                if message.lower().startswith(pattern.lower()):
+                    return message[len(pattern):].strip()
+        return None
+    
     def parse_command(self, message: str) -> Tuple[str, Optional[str]]:
         """解析命令
         
         Returns:
             (command_type, extracted_message)
-            command_type: "switch", "exit", "help", "none"
-            extracted_message: 提取的消息内容（仅对 switch 命令有效）
+            command_type: "switch", "exit", "help", "session", "none"
+            extracted_message: 提取的消息内容（对 switch/session 命令有效）
         """
         if self.is_help_command(message):
             return ("help", None)
         
         if self.is_exit_command(message):
             return ("exit", None)
+        
+        if self.is_session_command(message):
+            session_name = self.extract_session_name(message)
+            return ("session", session_name)
         
         if self.is_switch_command(message):
             extracted = self.extract_message(message)
@@ -92,15 +115,21 @@ class CommandHandler:
   /clawd <消息>  - 切换到 OpenClaw 模式并发送消息
   /管理 <消息>   - 同上（别名）
   
+📋 会话管理：
+  /clawd session <名称> - 切换到指定会话
+  /clawd session        - 查看当前会话
+  
 📋 退出指令：
   /退出 或 /返回 - 退出 OpenClaw 模式，返回 AstrBot
 
 💡 使用示例：
   /clawd 帮我检查系统状态
-  /clawd 生成一份系统报告
+  /clawd session work   - 切换到工作会话
+  /clawd session home   - 切换到个人会话
   /退出
 
 ⚠️ 注意：
   - 仅管理员可使用此功能
+  - 不同会话的对话历史相互独立
   - 确保 OpenClaw Gateway 正在运行
   - 长时间任务可能需要等待"""

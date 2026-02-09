@@ -29,7 +29,7 @@ DEFAULT_EXIT_COMMANDS = ["/exit", "/退出", "/返回"]
     "clawdbot_bridge",
     "a4869",
     "AstrBot 与 OpenClaw 桥接插件，允许管理员通过 QQ 与 OpenClaw AI Agent 交互",
-    "1.1.0",
+    "1.2.0",
 )
 class ClawdbotBridge(Star):
     """AstrBot ↔ OpenClaw 桥接插件"""
@@ -147,6 +147,38 @@ class ClawdbotBridge(Star):
             result = event.plain_result(response or "✅ OpenClaw 已处理，但未返回消息。")
             event.set_result(result)
             yield result
+            return
+        
+        # 处理会话切换命令
+        if cmd_type == "session":
+            # 如果没有指定会话名称，显示当前会话
+            if not extracted_msg:
+                current_session = self.session_manager.get_session_name(session_id)
+                if current_session:
+                    result = event.plain_result(f"📌 当前会话: {current_session}")
+                else:
+                    result = event.plain_result("📌 当前会话: default")
+                event.set_result(result)
+                yield result
+                return
+            
+            # 切换到指定会话
+            if is_in_clawdbot:
+                # 已在 OpenClaw 模式，直接切换会话
+                success = self.session_manager.set_session_name(session_id, extracted_msg, event)
+                if success:
+                    result = event.plain_result(f"✅ 已切换到会话: {extracted_msg}")
+                else:
+                    result = event.plain_result("❌ 切换会话失败")
+                event.set_result(result)
+                yield result
+            else:
+                # 未在 OpenClaw 模式，进入模式并设置会话
+                session_key = self.session_manager.get_gateway_session_key(event, extracted_msg)
+                self.session_manager.enter_clawdbot_mode(session_id, session_key, extracted_msg)
+                result = event.plain_result(f"✅ 已进入 OpenClaw 模式，会话: {extracted_msg}")
+                event.set_result(result)
+                yield result
             return
         
         # 在 OpenClaw 模式下转发消息

@@ -17,6 +17,7 @@ class Session:
     """会话数据"""
     mode: str  # "clawdbot" 或 "astrbot"
     session_key: str  # OpenClaw Gateway 的会话标识
+    session_name: str = "default"  # 会话名称
 
 
 class SessionManager:
@@ -50,29 +51,41 @@ class SessionManager:
         logger.debug(f"[SessionManager] 会话 ID: {session_id}")
         return session_id
     
-    def get_gateway_session_key(self, event: AstrMessageEvent) -> str:
-        """获取 OpenClaw Gateway 的会话标识"""
+    def get_gateway_session_key(self, event: AstrMessageEvent, session_name: str = "default") -> str:
+        """获取 OpenClaw Gateway 的会话标识
+        
+        Args:
+            event: AstrBot 消息事件
+            session_name: 会话名称，用于区分不同的对话上下文
+        """
         platform = event.get_platform_name()
         group_id = event.get_group_id() or ""
         user_id = extract_user_id(event, group_id)
         
         if group_id:
-            return f"astrbot_{platform}_{user_id}_{group_id}"
+            return f"astrbot_{platform}_{user_id}_{group_id}_{session_name}"
         else:
-            return f"astrbot_{platform}_{user_id}_private"
+            return f"astrbot_{platform}_{user_id}_private_{session_name}"
     
     def is_in_clawdbot_mode(self, session_id: str) -> bool:
         """检查会话是否在 OpenClaw 模式"""
         session = self._sessions.get(session_id)
         return session is not None and session.mode == self.MODE_CLAWDBOT
     
-    def enter_clawdbot_mode(self, session_id: str, session_key: str) -> None:
-        """进入 OpenClaw 模式"""
+    def enter_clawdbot_mode(self, session_id: str, session_key: str, session_name: str = "default") -> None:
+        """进入 OpenClaw 模式
+        
+        Args:
+            session_id: 会话 ID
+            session_key: Gateway 会话标识
+            session_name: 会话名称
+        """
         self._sessions[session_id] = Session(
             mode=self.MODE_CLAWDBOT,
-            session_key=session_key
+            session_key=session_key,
+            session_name=session_name
         )
-        logger.info(f"[SessionManager] ✅ 进入 OpenClaw 模式: {session_id}")
+        logger.info(f"[SessionManager] ✅ 进入 OpenClaw 模式: {session_id} (会话: {session_name})")
     
     def exit_clawdbot_mode(self, session_id: str) -> bool:
         """退出 OpenClaw 模式
@@ -90,6 +103,40 @@ class SessionManager:
         """获取会话的 Gateway session key"""
         session = self._sessions.get(session_id)
         return session.session_key if session else None
+    
+    def get_session_name(self, session_id: str) -> Optional[str]:
+        """获取会话名称"""
+        session = self._sessions.get(session_id)
+        return session.session_name if session else None
+    
+    def set_session_name(self, session_id: str, session_name: str, event: "AstrMessageEvent") -> bool:
+        """设置会话名称并更新 session_key
+        
+        Args:
+            session_id: 会话 ID
+            session_name: 新的会话名称
+            event: 消息事件（用于生成新的 session_key）
+            
+        Returns:
+            是否成功设置
+        """
+        session = self._sessions.get(session_id)
+        if session:
+            # 生成新的 session_key
+            platform = event.get_platform_name()
+            group_id = event.get_group_id() or ""
+            user_id = extract_user_id(event, group_id)
+            
+            if group_id:
+                new_session_key = f"astrbot_{platform}_{user_id}_{group_id}_{session_name}"
+            else:
+                new_session_key = f"astrbot_{platform}_{user_id}_private_{session_name}"
+            
+            session.session_name = session_name
+            session.session_key = new_session_key
+            logger.info(f"[SessionManager] ✅ 切换会话: {session_id} -> {session_name}")
+            return True
+        return False
     
     def clear_all(self) -> int:
         """清理所有会话
