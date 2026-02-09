@@ -57,6 +57,9 @@ class SessionManager:
         Args:
             event: AstrBot 消息事件
             session_name: 会话名称，用于区分不同的对话上下文
+            
+        Returns:
+            会话标识字符串
         """
         platform = event.get_platform_name()
         group_id = event.get_group_id() or ""
@@ -66,6 +69,18 @@ class SessionManager:
             return f"astrbot_{platform}_{user_id}_{group_id}_{session_name}"
         else:
             return f"astrbot_{platform}_{user_id}_private_{session_name}"
+    
+    def get_shared_session_key(self, agent_id: str, session_name: str) -> str:
+        """获取与 OpenClaw WebUI 共享的会话标识
+        
+        Args:
+            agent_id: Agent ID
+            session_name: 会话名称
+            
+        Returns:
+            格式: agent:{agent_id}:{session_name}
+        """
+        return f"agent:{agent_id}:{session_name}"
     
     def is_in_clawdbot_mode(self, session_id: str) -> bool:
         """检查会话是否在 OpenClaw 模式"""
@@ -109,13 +124,22 @@ class SessionManager:
         session = self._sessions.get(session_id)
         return session.session_name if session else None
     
-    def set_session_name(self, session_id: str, session_name: str, event: "AstrMessageEvent") -> bool:
+    def set_session_name(
+        self, 
+        session_id: str, 
+        session_name: str, 
+        event: "AstrMessageEvent",
+        agent_id: str = None,
+        share_with_webui: bool = False
+    ) -> bool:
         """设置会话名称并更新 session_key
         
         Args:
             session_id: 会话 ID
             session_name: 新的会话名称
             event: 消息事件（用于生成新的 session_key）
+            agent_id: Agent ID（共享模式需要）
+            share_with_webui: 是否与 WebUI 共享会话
             
         Returns:
             是否成功设置
@@ -123,14 +147,10 @@ class SessionManager:
         session = self._sessions.get(session_id)
         if session:
             # 生成新的 session_key
-            platform = event.get_platform_name()
-            group_id = event.get_group_id() or ""
-            user_id = extract_user_id(event, group_id)
-            
-            if group_id:
-                new_session_key = f"astrbot_{platform}_{user_id}_{group_id}_{session_name}"
+            if share_with_webui and agent_id:
+                new_session_key = self.get_shared_session_key(agent_id, session_name)
             else:
-                new_session_key = f"astrbot_{platform}_{user_id}_private_{session_name}"
+                new_session_key = self.get_gateway_session_key(event, session_name)
             
             session.session_name = session_name
             session.session_key = new_session_key

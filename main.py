@@ -30,7 +30,7 @@ DEFAULT_SESSION = "main"
     "clawdbot_bridge",
     "a4869",
     "AstrBot 与 OpenClaw 桥接插件，允许管理员通过 QQ 与 OpenClaw AI Agent 交互",
-    "1.2.1",
+    "1.3.0",
 )
 class ClawdbotBridge(Star):
     """AstrBot ↔ OpenClaw 桥接插件"""
@@ -47,6 +47,8 @@ class ClawdbotBridge(Star):
         switch_commands = self._get_config("switch_commands", DEFAULT_SWITCH_COMMANDS)
         exit_commands = self._get_config("exit_commands", DEFAULT_EXIT_COMMANDS)
         self.default_session = self._get_config("default_session", DEFAULT_SESSION)
+        self.share_with_webui = self._get_config("share_with_webui", False)
+        self.agent_id = agent_id
         
         # 初始化组件
         self.client = OpenClawClient(
@@ -62,7 +64,8 @@ class ClawdbotBridge(Star):
         )
         
         logger.info(
-            f"[clawdbot_bridge] 插件初始化完成 - Gateway: {gateway_url}, Agent: {agent_id}, 默认会话: {self.default_session}"
+            f"[clawdbot_bridge] 插件初始化完成 - Gateway: {gateway_url}, Agent: {agent_id}, "
+            f"默认会话: {self.default_session}, 共享WebUI: {self.share_with_webui}"
         )
     
     def _get_config(self, key: str, default):
@@ -131,13 +134,19 @@ class ClawdbotBridge(Star):
         
         # 处理切换命令
         if cmd_type == "switch":
-            session_key = self.session_manager.get_gateway_session_key(event, self.default_session)
+            # 根据配置选择 session key 格式
+            if self.share_with_webui:
+                session_key = self.session_manager.get_shared_session_key(self.agent_id, self.default_session)
+            else:
+                session_key = self.session_manager.get_gateway_session_key(event, self.default_session)
+            
             self.session_manager.enter_clawdbot_mode(session_id, session_key, self.default_session)
             
             # 如果没有附带消息，只切换模式
             if not extracted_msg:
+                mode_hint = "（与 WebUI 共享）" if self.share_with_webui else ""
                 result = event.plain_result(
-                    f"💡 已切换到 OpenClaw 模式（会话: {self.default_session}）。发送消息即可与 OpenClaw 对话，使用 /退出 返回。"
+                    f"💡 已切换到 OpenClaw 模式{mode_hint}（会话: {self.default_session}）。发送消息即可与 OpenClaw 对话，使用 /退出 返回。"
                 )
                 event.set_result(result)
                 yield result
@@ -167,7 +176,13 @@ class ClawdbotBridge(Star):
             # 切换到指定会话
             if is_in_clawdbot:
                 # 已在 OpenClaw 模式，直接切换会话
-                success = self.session_manager.set_session_name(session_id, extracted_msg, event)
+                success = self.session_manager.set_session_name(
+                    session_id, 
+                    extracted_msg, 
+                    event,
+                    self.agent_id,
+                    self.share_with_webui
+                )
                 if success:
                     result = event.plain_result(f"✅ 已切换到会话: {extracted_msg}")
                 else:
@@ -176,7 +191,11 @@ class ClawdbotBridge(Star):
                 yield result
             else:
                 # 未在 OpenClaw 模式，进入模式并设置会话
-                session_key = self.session_manager.get_gateway_session_key(event, extracted_msg)
+                if self.share_with_webui:
+                    session_key = self.session_manager.get_shared_session_key(self.agent_id, extracted_msg)
+                else:
+                    session_key = self.session_manager.get_gateway_session_key(event, extracted_msg)
+                
                 self.session_manager.enter_clawdbot_mode(session_id, session_key, extracted_msg)
                 result = event.plain_result(f"✅ 已进入 OpenClaw 模式，会话: {extracted_msg}")
                 event.set_result(result)

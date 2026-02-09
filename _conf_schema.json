@@ -33,5 +33,10 @@
     "type": "string",
     "description": "默认会话名称（如 main、default、work 等）",
     "default": "main"
+  },
+  "share_with_webui": {
+    "type": "bool",
+    "description": "是否与 OpenClaw WebUI 共享会话（启用后所有管理员共享同一会话）",
+    "default": false
   }
 }

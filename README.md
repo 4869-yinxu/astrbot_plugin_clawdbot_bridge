@@ -34,6 +34,7 @@ docker restart astrbot
 | `exit_commands` | list | `["/exit", "/退出", "/返回"]` | 退出 OpenClaw 模式的命令 |
 | `timeout` | int | `60` | API 请求超时时间（秒），建议设为 300 |
 | `default_session` | string | `main` | 默认会话名称 |
+| `share_with_webui` | bool | `false` | 是否与 OpenClaw WebUI 共享会话 |
 
 ### 配置示例
 
@@ -45,7 +46,8 @@ docker restart astrbot
   "switch_commands": ["/clawd", "/管理", "/clawdbot"],
   "exit_commands": ["/exit", "/退出", "/返回"],
   "timeout": 300,
-  "default_session": "main"
+  "default_session": "main",
+  "share_with_webui": true
 }
 ```
 
@@ -54,7 +56,11 @@ docker restart astrbot
 - **Docker 环境**：如果 AstrBot 运行在 Docker 中，Gateway URL 应使用 `host.docker.internal` 而非 `localhost`
 - **超时设置**：如果 Agent 需要执行耗时操作（如系统命令），建议将 `timeout` 设为 300 秒
 - **认证 Token**：需要与 OpenClaw Gateway 配置的 `gateway.auth.token` 一致
-- **默认会话**：设置 `default_session` 为 `main` 可以与 OpenClaw WebUI 使用相同的会话上下文
+- **会话共享**：
+  - 启用 `share_with_webui: true` 后，QQ 和 WebUI 将共享同一个会话
+  - 所有管理员在 QQ 中会共享同一个对话历史
+  - 适合单人使用或团队协作场景
+  - 如果需要每个用户独立的会话，保持 `share_with_webui: false`
 
 ## 使用方法
 
