@@ -28,5 +28,10 @@
     "type": "int",
     "description": "Gateway API 请求超时时间（秒）",
     "default": 60
+  },
+  "default_session": {
+    "type": "string",
+    "description": "默认会话名称（如 main、default、work 等）",
+    "default": "main"
   }
 }

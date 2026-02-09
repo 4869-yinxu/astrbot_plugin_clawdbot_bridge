@@ -23,13 +23,14 @@ DEFAULT_AGENT_ID = "clawdbotbot"
 DEFAULT_TIMEOUT = 300
 DEFAULT_SWITCH_COMMANDS = ["/clawd", "/管理", "/clawdbot"]
 DEFAULT_EXIT_COMMANDS = ["/exit", "/退出", "/返回"]
+DEFAULT_SESSION = "main"
 
 
 @register(
     "clawdbot_bridge",
     "a4869",
     "AstrBot 与 OpenClaw 桥接插件，允许管理员通过 QQ 与 OpenClaw AI Agent 交互",
-    "1.2.0",
+    "1.2.1",
 )
 class ClawdbotBridge(Star):
     """AstrBot ↔ OpenClaw 桥接插件"""
@@ -45,6 +46,7 @@ class ClawdbotBridge(Star):
         timeout = self._get_config("timeout", DEFAULT_TIMEOUT)
         switch_commands = self._get_config("switch_commands", DEFAULT_SWITCH_COMMANDS)
         exit_commands = self._get_config("exit_commands", DEFAULT_EXIT_COMMANDS)
+        self.default_session = self._get_config("default_session", DEFAULT_SESSION)
         
         # 初始化组件
         self.client = OpenClawClient(
@@ -60,7 +62,7 @@ class ClawdbotBridge(Star):
         )
         
         logger.info(
-            f"[clawdbot_bridge] 插件初始化完成 - Gateway: {gateway_url}, Agent: {agent_id}"
+            f"[clawdbot_bridge] 插件初始化完成 - Gateway: {gateway_url}, Agent: {agent_id}, 默认会话: {self.default_session}"
         )
     
     def _get_config(self, key: str, default):
@@ -129,13 +131,13 @@ class ClawdbotBridge(Star):
         
         # 处理切换命令
         if cmd_type == "switch":
-            session_key = self.session_manager.get_gateway_session_key(event)
-            self.session_manager.enter_clawdbot_mode(session_id, session_key)
+            session_key = self.session_manager.get_gateway_session_key(event, self.default_session)
+            self.session_manager.enter_clawdbot_mode(session_id, session_key, self.default_session)
             
             # 如果没有附带消息，只切换模式
             if not extracted_msg:
                 result = event.plain_result(
-                    "💡 已切换到 OpenClaw 模式。发送消息即可与 OpenClaw 对话，使用 /退出 返回。"
+                    f"💡 已切换到 OpenClaw 模式（会话: {self.default_session}）。发送消息即可与 OpenClaw 对话，使用 /退出 返回。"
                 )
                 event.set_result(result)
                 yield result
