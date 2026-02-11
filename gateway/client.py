@@ -70,6 +70,11 @@ class OpenClawClient:
         Returns:
             OpenClaw 返回的文本内容，失败时返回错误提示
         """
+        # 验证消息不为空
+        if not message or not message.strip():
+            logger.warning("[OpenClawClient] 消息为空，拒绝发送")
+            return "❌ 消息不能为空"
+        
         url = f"{self.gateway_url}/v1/responses"
         headers = self._build_headers(session_key)
         payload = self._build_payload(message, session_key, stream=True)
